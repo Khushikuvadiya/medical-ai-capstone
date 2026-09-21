@@ -208,3 +208,5 @@ POST /predict
 POST /explain
 POST /counterfactual
 POST /review
+## Engineering Workflow Evidence
+This repository uses GitHub Issues, feature branches, pull requests, automated CI testing, and versioned releases as engineering evidence for the capstone project.
