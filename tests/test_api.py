@@ -1,10 +1,91 @@
-from fastapi.testclient import TestClient
+import sys
+import types
 
+
+# =========================================================
+# MOCK MODEL MODULES FOR CI
+# =========================================================
+
+mock_predict = types.ModuleType("api.predict")
+
+
+def fake_predict_xray(image_bytes):
+    return {
+        "prediction": "NORMAL",
+        "normal_probability": 0.8,
+        "pneumonia_probability": 0.2,
+    }
+
+
+mock_predict.predict_xray = fake_predict_xray
+
+sys.modules["api.predict"] = mock_predict
+
+
+mock_explain = types.ModuleType("api.explain")
+
+
+def fake_create_gradcam(image_bytes):
+    return {
+        "prediction": "NORMAL",
+        "normal_probability": 0.8,
+        "pneumonia_probability": 0.2,
+        "gradcam_image_base64": "fake",
+    }
+
+
+mock_explain.create_gradcam = fake_create_gradcam
+
+sys.modules["api.explain"] = mock_explain
+
+
+mock_counterfactual = types.ModuleType(
+    "api.counterfactual"
+)
+
+
+def fake_generate_counterfactual(image_bytes):
+    return {
+        "original_prediction": "NORMAL",
+        "original_normal_probability": 0.8,
+        "original_pneumonia_probability": 0.2,
+
+        "counterfactual_prediction": "PNEUMONIA",
+        "counterfactual_normal_probability": 0.2,
+        "counterfactual_pneumonia_probability": 0.8,
+
+        "mean_absolute_change": 0.02,
+        "maximum_change": 0.05,
+        "fraction_changed_over_005": 0.1,
+
+        "counterfactual_image_base64": "fake",
+        "difference_image_base64": "fake",
+    }
+
+
+mock_counterfactual.generate_counterfactual = (
+    fake_generate_counterfactual
+)
+
+sys.modules[
+    "api.counterfactual"
+] = mock_counterfactual
+
+
+# =========================================================
+# IMPORT APP AFTER MOCKING
+# =========================================================
+
+from fastapi.testclient import TestClient
 from api.main import app
 
 
 client = TestClient(app)
 
+
+# =========================================================
+# ROOT
+# =========================================================
 
 def test_root():
 
@@ -20,6 +101,10 @@ def test_root():
     )
 
 
+# =========================================================
+# HEALTH
+# =========================================================
+
 def test_health():
 
     response = client.get("/health")
@@ -30,6 +115,10 @@ def test_health():
 
     assert data["status"] == "healthy"
 
+
+# =========================================================
+# INVALID PREDICT FILE
+# =========================================================
 
 def test_predict_rejects_invalid_file():
 
@@ -49,6 +138,10 @@ def test_predict_rejects_invalid_file():
     assert response.status_code == 400
 
 
+# =========================================================
+# INVALID EXPLAIN FILE
+# =========================================================
+
 def test_explain_rejects_invalid_file():
 
     files = {
@@ -66,6 +159,10 @@ def test_explain_rejects_invalid_file():
 
     assert response.status_code == 400
 
+
+# =========================================================
+# INVALID COUNTERFACTUAL FILE
+# =========================================================
 
 def test_counterfactual_rejects_invalid_file():
 
@@ -85,6 +182,10 @@ def test_counterfactual_rejects_invalid_file():
     assert response.status_code == 400
 
 
+# =========================================================
+# VALID REVIEW
+# =========================================================
+
 def test_review_valid_decision():
 
     payload = {
@@ -102,6 +203,10 @@ def test_review_valid_decision():
 
     assert response.status_code == 200
 
+
+# =========================================================
+# INVALID REVIEW
+# =========================================================
 
 def test_review_invalid_decision():
 
