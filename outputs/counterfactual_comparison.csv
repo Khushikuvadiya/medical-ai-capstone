@@ -1,0 +1,4 @@
+Method,Target Confidence,Mean Absolute Change,Maximum Change,Fraction Changed > 0.05
+Basic Counterfactual,0.838,0.046196,0.143047,
+Smooth Counterfactual,0.8212,0.045256,0.138903,0.3694
+Low-Resolution Counterfactual,0.8954,0.026228,0.078849,0.115

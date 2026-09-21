@@ -1,0 +1,4 @@
+operation,average_seconds,runs
+Prediction,0.07196305999532342,5
+Grad-CAM,0.29254469997249544,3
+Counterfactual,0.8126115000341088,1

@@ -1,0 +1,14 @@
+timestamp,endpoint,method,status_code,success,latency_seconds,error_message
+2026-09-21T19:39:42,/predict,POST,400,False,1.2e-05,Only JPEG and PNG images are supported.
+2026-09-21T19:39:42,/explain,POST,400,False,1e-05,Only JPEG and PNG images are supported.
+2026-09-21T19:39:43,/counterfactual,POST,400,False,2.6e-05,Only JPEG and PNG images are supported.
+2026-09-21T19:39:43,/review,POST,200,True,0.001512,
+2026-09-21T19:39:43,/review,POST,400,False,8e-06,Invalid reviewer decision.
+2026-09-21T19:40:49,/predict,POST,200,True,0.206902,
+2026-09-21T19:40:49,/explain,POST,200,True,0.315329,
+2026-09-21T19:40:55,/counterfactual,POST,200,True,1.005922,
+2026-09-21T19:40:59,/review,POST,200,True,0.003022,
+2026-09-21T19:42:15,/predict,POST,200,True,0.076235,
+2026-09-21T19:42:15,/explain,POST,200,True,0.227564,
+2026-09-21T19:42:20,/counterfactual,POST,200,True,0.841684,
+2026-09-21T19:42:26,/review,POST,200,True,0.001716,

@@ -1,0 +1,7 @@
+check,count,status
+Duplicates inside train,0,PASS
+Duplicates inside validation,0,PASS
+Duplicates inside test,0,PASS
+Train-validation overlap,0,PASS
+Train-test overlap,0,PASS
+Validation-test overlap,0,PASS
