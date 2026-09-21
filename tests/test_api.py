@@ -1,7 +1,9 @@
+import os
 import sys
 import types
 
-
+os.environ["MEDICAL_AI_RESEARCHER_KEY"] = "researcher-demo-key"
+os.environ["MEDICAL_AI_REVIEWER_KEY"] = "reviewer-demo-key"
 # =========================================================
 # MOCK MODEL MODULES FOR CI
 # =========================================================
@@ -18,7 +20,6 @@ def fake_predict_xray(image_bytes):
 
 
 mock_predict.predict_xray = fake_predict_xray
-
 sys.modules["api.predict"] = mock_predict
 
 
@@ -35,7 +36,6 @@ def fake_create_gradcam(image_bytes):
 
 
 mock_explain.create_gradcam = fake_create_gradcam
-
 sys.modules["api.explain"] = mock_explain
 
 
@@ -73,7 +73,7 @@ sys.modules[
 
 
 # =========================================================
-# IMPORT APP AFTER MOCKING
+# IMPORT APP
 # =========================================================
 
 from fastapi.testclient import TestClient
@@ -81,6 +81,15 @@ from api.main import app
 
 
 client = TestClient(app)
+
+
+RESEARCHER_HEADERS = {
+    "X-API-Key": "researcher-demo-key"
+}
+
+REVIEWER_HEADERS = {
+    "X-API-Key": "reviewer-demo-key"
+}
 
 
 # =========================================================
@@ -117,6 +126,50 @@ def test_health():
 
 
 # =========================================================
+# AUTHENTICATION
+# =========================================================
+
+def test_predict_requires_api_key():
+
+    files = {
+        "file": (
+            "test.txt",
+            b"test",
+            "text/plain"
+        )
+    }
+
+    response = client.post(
+        "/predict",
+        files=files
+    )
+
+    assert response.status_code == 422
+
+
+def test_predict_rejects_invalid_api_key():
+
+    files = {
+        "file": (
+            "test.txt",
+            b"test",
+            "text/plain"
+        )
+    }
+
+    response = client.post(
+        "/predict",
+        files=files,
+        headers={
+            "X-API-Key":
+                "wrong-key"
+        }
+    )
+
+    assert response.status_code == 401
+
+
+# =========================================================
 # INVALID PREDICT FILE
 # =========================================================
 
@@ -132,7 +185,8 @@ def test_predict_rejects_invalid_file():
 
     response = client.post(
         "/predict",
-        files=files
+        files=files,
+        headers=RESEARCHER_HEADERS
     )
 
     assert response.status_code == 400
@@ -154,7 +208,8 @@ def test_explain_rejects_invalid_file():
 
     response = client.post(
         "/explain",
-        files=files
+        files=files,
+        headers=RESEARCHER_HEADERS
     )
 
     assert response.status_code == 400
@@ -176,7 +231,8 @@ def test_counterfactual_rejects_invalid_file():
 
     response = client.post(
         "/counterfactual",
-        files=files
+        files=files,
+        headers=RESEARCHER_HEADERS
     )
 
     assert response.status_code == 400
@@ -198,14 +254,38 @@ def test_review_valid_decision():
 
     response = client.post(
         "/review",
-        json=payload
+        json=payload,
+        headers=REVIEWER_HEADERS
     )
 
     assert response.status_code == 200
 
 
 # =========================================================
-# INVALID REVIEW
+# RESEARCHER CANNOT REVIEW
+# =========================================================
+
+def test_researcher_cannot_submit_review():
+
+    payload = {
+        "filename": "test_image.jpeg",
+        "prediction": "NORMAL",
+        "normal_probability": 0.80,
+        "pneumonia_probability": 0.20,
+        "reviewer_decision": "Agree with AI"
+    }
+
+    response = client.post(
+        "/review",
+        json=payload,
+        headers=RESEARCHER_HEADERS
+    )
+
+    assert response.status_code == 403
+
+
+# =========================================================
+# INVALID REVIEW DECISION
 # =========================================================
 
 def test_review_invalid_decision():
@@ -220,7 +300,8 @@ def test_review_invalid_decision():
 
     response = client.post(
         "/review",
-        json=payload
+        json=payload,
+        headers=REVIEWER_HEADERS
     )
 
     assert response.status_code == 400

@@ -5,6 +5,7 @@ from fastapi import (
     UploadFile,
     File,
     HTTPException,
+    Depends,
 )
 
 from pydantic import BaseModel
@@ -25,15 +26,20 @@ from api.monitoring import (
     stop_timer,
 )
 
+from api.security import (
+    require_api_key,
+    require_reviewer,
+)
+
 
 app = FastAPI(
     title="Medical AI Capstone API",
     description=(
         "Research prototype API for chest X-ray classification, "
         "explainability, counterfactual analysis, audit logging, "
-        "and operational monitoring."
+        "operational monitoring, authentication and authorization."
     ),
-    version="0.7.0",
+    version="0.8.0",
 )
 
 
@@ -118,7 +124,6 @@ def validate_image_bytes(
             detail="Uploaded file is empty.",
         )
 
-
     if len(image_bytes) > MAX_FILE_SIZE:
 
         raise HTTPException(
@@ -128,7 +133,6 @@ def validate_image_bytes(
                 "Maximum allowed size is 5 MB."
             ),
         )
-
 
     try:
 
@@ -175,11 +179,13 @@ async def read_and_validate_image(
 
 # =========================================================
 # PREDICTION
+# Researcher OR Reviewer can access
 # =========================================================
 
 @app.post("/predict")
 async def predict(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    api_key: str = Depends(require_api_key),
 ):
 
     start_time = start_timer()
@@ -194,7 +200,6 @@ async def predict(
             image_bytes
         )
 
-
         log_analysis(
             filename=file.filename,
             prediction=result["prediction"],
@@ -206,7 +211,6 @@ async def predict(
             ),
             explanation_method="Prediction",
         )
-
 
         latency = stop_timer(
             start_time
@@ -220,13 +224,12 @@ async def predict(
             latency_seconds=latency,
         )
 
-
         return {
             "filename": file.filename,
             "research_use_only": True,
+            "authenticated": True,
             **result,
         }
-
 
     except HTTPException as error:
 
@@ -246,7 +249,6 @@ async def predict(
         )
 
         raise
-
 
     except Exception as error:
 
@@ -271,11 +273,13 @@ async def predict(
 
 # =========================================================
 # GRAD-CAM EXPLANATION
+# Researcher OR Reviewer can access
 # =========================================================
 
 @app.post("/explain")
 async def explain(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    api_key: str = Depends(require_api_key),
 ):
 
     start_time = start_timer()
@@ -290,7 +294,6 @@ async def explain(
             image_bytes
         )
 
-
         log_analysis(
             filename=file.filename,
             prediction=result["prediction"],
@@ -302,7 +305,6 @@ async def explain(
             ),
             explanation_method="Grad-CAM",
         )
-
 
         latency = stop_timer(
             start_time
@@ -316,13 +318,12 @@ async def explain(
             latency_seconds=latency,
         )
 
-
         return {
             "filename": file.filename,
             "research_use_only": True,
+            "authenticated": True,
             **result,
         }
-
 
     except HTTPException as error:
 
@@ -342,7 +343,6 @@ async def explain(
         )
 
         raise
-
 
     except Exception as error:
 
@@ -367,11 +367,13 @@ async def explain(
 
 # =========================================================
 # COUNTERFACTUAL
+# Researcher OR Reviewer can access
 # =========================================================
 
 @app.post("/counterfactual")
 async def counterfactual(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    api_key: str = Depends(require_api_key),
 ):
 
     start_time = start_timer()
@@ -386,11 +388,12 @@ async def counterfactual(
             image_bytes
         )
 
-
         log_analysis(
             filename=file.filename,
             prediction=(
-                result["counterfactual_prediction"]
+                result[
+                    "counterfactual_prediction"
+                ]
             ),
             normal_probability=(
                 result[
@@ -405,7 +408,6 @@ async def counterfactual(
             explanation_method="Counterfactual",
         )
 
-
         latency = stop_timer(
             start_time
         )
@@ -418,13 +420,12 @@ async def counterfactual(
             latency_seconds=latency,
         )
 
-
         return {
             "filename": file.filename,
             "research_use_only": True,
+            "authenticated": True,
             **result,
         }
-
 
     except HTTPException as error:
 
@@ -444,7 +445,6 @@ async def counterfactual(
         )
 
         raise
-
 
     except Exception as error:
 
@@ -469,11 +469,13 @@ async def counterfactual(
 
 # =========================================================
 # REVIEWER FEEDBACK
+# Reviewer only
 # =========================================================
 
 @app.post("/review")
 def review(
-    review_data: ReviewRequest
+    review_data: ReviewRequest,
+    api_key: str = Depends(require_reviewer),
 ):
 
     start_time = start_timer()
@@ -484,17 +486,15 @@ def review(
         "Needs further review",
     ]
 
-
     allowed_predictions = [
         "NORMAL",
         "PNEUMONIA",
     ]
 
-
     try:
 
         # -------------------------------------------------
-        # VALIDATE REVIEW DECISION
+        # REVIEW DECISION VALIDATION
         # -------------------------------------------------
 
         if (
@@ -511,7 +511,7 @@ def review(
 
 
         # -------------------------------------------------
-        # VALIDATE PREDICTION
+        # PREDICTION VALIDATION
         # -------------------------------------------------
 
         if (
@@ -529,7 +529,7 @@ def review(
 
 
         # -------------------------------------------------
-        # VALIDATE NORMAL PROBABILITY
+        # NORMAL PROBABILITY VALIDATION
         # -------------------------------------------------
 
         if not (
@@ -548,7 +548,7 @@ def review(
 
 
         # -------------------------------------------------
-        # VALIDATE PNEUMONIA PROBABILITY
+        # PNEUMONIA PROBABILITY VALIDATION
         # -------------------------------------------------
 
         if not (
@@ -567,7 +567,7 @@ def review(
 
 
         # -------------------------------------------------
-        # VALIDATE PROBABILITY SUM
+        # PROBABILITY SUM VALIDATION
         # -------------------------------------------------
 
         probability_sum = (
@@ -606,7 +606,6 @@ def review(
             ),
         )
 
-
         latency = stop_timer(
             start_time
         )
@@ -619,15 +618,19 @@ def review(
             latency_seconds=latency,
         )
 
-
         return {
             "message":
                 "Reviewer decision saved successfully.",
 
+            "authenticated":
+                True,
+
+            "authorized_role":
+                "reviewer",
+
             "audit_record":
                 record,
         }
-
 
     except HTTPException as error:
 
@@ -647,7 +650,6 @@ def review(
         )
 
         raise
-
 
     except Exception as error:
 
